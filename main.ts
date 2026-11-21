@@ -3,7 +3,7 @@
 // $MAKEFUN_OUTPUT_DIR/entry.txt (falling back to /output/entry.txt).
 // Node 22, no network, no dependencies.
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const TEXT =
@@ -28,7 +28,20 @@ function main(): void {
 
   const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
   mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, "entry.txt"), TEXT, "utf8");
+  const outPath = join(outDir, "entry.txt");
+  writeFileSync(outPath, TEXT, "utf8");
+
+  // Verify what was actually written: read it back and re-validate the
+  // code point count (1-280) and non-whitespace content. If the round-trip
+  // check fails, fail loudly instead of silently shipping a bad entry.
+  const written = readFileSync(outPath, "utf8");
+  const writtenCount = codePointCount(written);
+  if (writtenCount < 1 || writtenCount > 280 || written.trim().length === 0) {
+    console.error(
+      `written entry failed validation: ${writtenCount} code points`,
+    );
+    process.exit(1);
+  }
 }
 
 main();
